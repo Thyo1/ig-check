@@ -1,5 +1,6 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
+const fs = require('fs');
 const app = express();
 
 const PORT = process.env.PORT || 3000;
@@ -8,28 +9,34 @@ const IG_PASSWORD = "sayapunya";
 
 // Dashboard Utama
 app.get('/', (req, res) => {
+    const hasCookies = fs.existsSync('./cookies.json') ? 
+        '<span style="color:green;">Cookies Terdeteksi (Login lebih aman)</span>' : 
+        '<span style="color:orange;">Tanpa Cookies (Login manual)</span>';
+
     res.send(`
         <!DOCTYPE html>
         <html>
         <head>
-            <title>IG Follower Analyser</title>
+            <title>IG Analyser Pro</title>
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <style>
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fafafa; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-                .card { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 90%; }
-                h1 { color: #262626; font-size: 24px; margin-bottom: 10px; }
-                p { color: #8e8e8e; margin-bottom: 20px; }
-                .btn { background: #0095f6; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; transition: 0.3s; }
-                .btn:hover { background: #1877f2; }
-                .loader { display: none; margin-top: 20px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; margin-left: auto; margin-right: auto; }
+                body { font-family: 'Segoe UI', sans-serif; background: #fafafa; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+                .card { background: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 90%; }
+                h1 { color: #262626; margin-bottom: 5px; }
+                p { color: #8e8e8e; font-size: 14px; margin-bottom: 20px; }
+                .status { font-size: 12px; margin-bottom: 20px; display: block; }
+                .btn { background: #0095f6; color: white; border: none; padding: 14px 28px; border-radius: 10px; font-weight: bold; cursor: pointer; text-decoration: none; display: inline-block; transition: 0.3s; }
+                .btn:hover { background: #1877f2; transform: translateY(-2px); }
+                .loader { display: none; margin: 20px auto; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 35px; height: 35px; animation: spin 1s linear infinite; }
                 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
             </style>
         </head>
         <body>
             <div class="card">
                 <h1>IG Analyser</h1>
-                <p>Cek siapa yang tidak follback akun <strong>@${IG_USERNAME}</strong> secara otomatis.</p>
-                <a href="/check" class="btn" onclick="document.getElementById('l').style.display='block'">Mulai Scan</a>
+                <p>Menganalisis <strong>@${IG_USERNAME}</strong></p>
+                <code class="status">${hasCookies}</code>
+                <a href="/check" class="btn" onclick="document.getElementById('l').style.display='block'; this.style.display='none'">Jalankan Bot</a>
                 <div id="l" class="loader"></div>
             </div>
         </body>
@@ -37,80 +44,87 @@ app.get('/', (req, res) => {
     `);
 });
 
-// Halaman Hasil
+// Proses Utama
 app.get('/check', async (req, res) => {
     try {
         const data = await runBot();
-        
-        let listHTML = data.nonFollowBack.map(user => `<li><a href="https://instagram.com/${user}" target="_blank">@${user}</a></li>`).join('');
+        const listHTML = data.nonFollowBack.map(user => `<li><a href="https://instagram.com/${user}" target="_blank">@${user}</a></li>`).join('');
         
         res.send(`
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Hasil Scan</title>
                 <style>
-                    body { font-family: sans-serif; background: #fafafa; padding: 20px; color: #262626; }
-                    .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-                    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-                    .stat-box { background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: center; }
-                    .stat-box span { display: block; font-size: 20px; font-weight: bold; }
-                    h2 { border-bottom: 2px solid #efefef; padding-bottom: 10px; color: #ed4956; }
+                    body { font-family: sans-serif; background: #fafafa; padding: 20px; }
+                    .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+                    .stats { display: flex; gap: 15px; margin-bottom: 25px; }
+                    .box { flex: 1; background: #f8f9fa; padding: 15px; border-radius: 12px; text-align: center; border: 1px solid #eee; }
+                    .box b { font-size: 24px; display: block; color: #262626; }
+                    h2 { color: #ed4956; font-size: 1.2rem; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
                     ul { list-style: none; padding: 0; }
-                    li { padding: 10px; border-bottom: 1px solid #fafafa; transition: 0.2s; }
-                    li:hover { background: #fffafb; }
-                    a { text-decoration: none; color: #00376b; font-weight: 500; }
-                    .back { display: block; margin-top: 20px; text-align: center; color: #8e8e8e; }
+                    li { padding: 12px; border-bottom: 1px solid #f9f9f9; }
+                    a { text-decoration: none; color: #00376b; font-weight: 600; }
+                    .back { display: block; text-align: center; margin-top: 30px; color: #999; text-decoration: none; }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h1>Ringkasan Akun</h1>
-                    <div class="stat-grid">
-                        <div class="stat-box">Following <span>${data.following.length}</span></div>
-                        <div class="stat-box">Followers <span>${data.followers.length}</span></div>
+                    <h1>Ringkasan</h1>
+                    <div class="stats">
+                        <div class="box"><b>${data.following.length}</b> Following</div>
+                        <div class="box"><b>${data.followers.length}</b> Followers</div>
                     </div>
-                    
-                    <h2>Gak Follback Kamu (${data.nonFollowBack.length})</h2>
-                    <ul>${listHTML || '<li>Semua sudah follback! 🎉</li>'}</ul>
-                    
-                    <a href="/" class="back">Kembali ke Dashboard</a>
+                    <h2>Tidak Follback (${data.nonFollowBack.length})</h2>
+                    <ul>${listHTML || '<li>🎉 Semua sudah follback kamu!</li>'}</ul>
+                    <a href="/" class="back">← Kembali</a>
                 </div>
             </body>
             </html>
         `);
     } catch (error) {
-        res.status(500).send(`<h1>Error</h1><p>${error.message}</p><a href="/">Coba Lagi</a>`);
+        res.status(500).send(`<h3>Error:</h3><p>${error.message}</p><a href="/">Coba Lagi</a>`);
     }
 });
 
-// --- FUNGSI runBot() DAN scrapeList() TETAP SAMA SEPERTI SEBELUMNYA ---
 async function runBot() {
     const browser = await puppeteer.launch({
         headless: "new",
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
+
     const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 800 });
+    await page.setViewport({ width: 1280, height: 900 });
 
     try {
-        await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle2' });
-        await page.waitForSelector('input[name="username"]');
-        await page.type('input[name="username"]', IG_USERNAME, { delay: 100 });
-        await page.type('input[name="password"]', IG_PASSWORD, { delay: 100 });
-        await page.click('button[type="submit"]');
-        await page.waitForNavigation({ waitUntil: 'networkidle2' });
+        // CEK COOKIES
+        if (fs.existsSync('./cookies.json')) {
+            console.log("Memuat Cookies...");
+            const cookies = JSON.parse(fs.readFileSync('./cookies.json'));
+            await page.setCookie(...cookies);
+            await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
+        } else {
+            console.log("Login Manual...");
+            await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle2' });
+            await page.waitForSelector('input[name="username"]');
+            await page.type('input[name="username"]', IG_USERNAME, { delay: 100 });
+            await page.type('input[name="password"]', IG_PASSWORD, { delay: 100 });
+            await page.click('button[type="submit"]');
+            await page.waitForNavigation({ waitUntil: 'networkidle2' });
+            
+            // Simpan cookies untuk sesi berikutnya
+            const savedCookies = await page.cookies();
+            fs.writeFileSync('./cookies.json', JSON.stringify(savedCookies, null, 2));
+        }
 
+        // AMBIL DATA
         await page.goto(`https://www.instagram.com/${IG_USERNAME}/`, { waitUntil: 'networkidle2' });
-
         const following = await scrapeList(page, 'following');
         const followers = await scrapeList(page, 'followers');
-
         const nonFollowBack = following.filter(u => !followers.includes(u));
-        const fans = followers.filter(u => !following.includes(u));
 
         await browser.close();
-        return { following, followers, nonFollowBack, fans };
+        return { following, followers, nonFollowBack };
     } catch (err) {
         if (browser) await browser.close();
         throw err;
@@ -125,33 +139,29 @@ async function scrapeList(page, type) {
     const modalSelector = 'div[role="dialog"] ._aano'; 
     await page.waitForSelector(modalSelector);
 
-    await page.evaluate(async (selector) => {
-        const scrollableDiv = document.querySelector(selector);
+    await page.evaluate(async (sel) => {
+        const el = document.querySelector(sel);
         await new Promise((resolve) => {
             let lastHeight = 0;
             const timer = setInterval(() => {
-                scrollableDiv.scrollTop += 500;
-                if (scrollableDiv.scrollHeight === lastHeight) {
+                el.scrollTop += 700;
+                if (el.scrollHeight === lastHeight) {
                     clearInterval(timer);
                     resolve();
                 }
-                lastHeight = scrollableDiv.scrollHeight;
-            }, 1500);
+                lastHeight = el.scrollHeight;
+            }, 2000);
         });
     }, modalSelector);
 
     const users = await page.evaluate(() => {
-        // Selector untuk username di dalam modal (bisa berubah sewaktu-waktu oleh Instagram)
-        const anchors = Array.from(document.querySelectorAll('span._ap3a._aaco._aacw._aacx._aad7._aade'));
-        return anchors.map(a => a.textContent.trim());
+        const items = Array.from(document.querySelectorAll('span._ap3a._aaco._aacw._aacx._aad7._aade'));
+        return items.map(i => i.textContent.trim());
     });
 
     await page.keyboard.press('Escape');
     await new Promise(r => setTimeout(r, 1000));
-    
     return users;
 }
 
-app.listen(PORT, () => {
-    console.log(`Server aktif di port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server jalan di port ${PORT}`));
