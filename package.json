@@ -1,7 +1,7 @@
 {
-  "name": "ig-checker",
+  "name": "ig-checker-tous",
   "version": "1.0.0",
-  "description": "Instagram Follower Checker for Railway",
+  "description": "Instagram Follower Checker",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
