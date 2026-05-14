@@ -3,8 +3,8 @@ const puppeteer = require('puppeteer');
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const IG_USERNAME = process.env.IG_USERNAME;
-const IG_PASSWORD = process.env.IG_PASSWORD;
+const IG_USERNAME = "thyo.ajah";
+const IG_PASSWORD = "sayapunya";
 
 // Dashboard Utama
 app.get('/', (req, res) => {
